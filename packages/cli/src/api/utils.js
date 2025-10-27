@@ -24,6 +24,26 @@ function mergeArrays(array1, array2) {
 }
 
 /**
+ * Normalize input to array format
+ *
+ * @param {*} value - Input that might be an array, string, or other type
+ * @returns {Array} Normalized array
+ */
+function normalizeArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_e) {
+      return [];
+    }
+  }
+  return [];
+}
+
+/**
  * Async/await sleep
  *
  * @param {Number} msec
@@ -40,5 +60,6 @@ function sleep(msec) {
 module.exports = {
   stringToArray,
   mergeArrays,
+  normalizeArray,
   sleep,
 };

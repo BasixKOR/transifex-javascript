@@ -11,7 +11,7 @@ const { CliUx } = require('@oclif/core');
 const { extractPhrases } = require('../api/extract');
 const { uploadPhrases, pollJob } = require('../api/upload');
 const { mergePayload } = require('../api/merge');
-const { stringToArray } = require('../api/utils');
+const { stringToArray, normalizeArray } = require('../api/utils');
 
 /**
  * Test if path is folder
@@ -162,37 +162,39 @@ class PushCommand extends Command {
 
       this.log('');
 
-      // --------- helpers to print verbose groups ----------
-      const normalizeArray = (maybeArr) => {
-        if (!maybeArr) return [];
-        if (Array.isArray(maybeArr)) return maybeArr;
-        if (typeof maybeArr === 'string') {
-          try {
-            const parsed = JSON.parse(maybeArr);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch (_) {
-            return [];
-          }
-        }
-        return [];
-      };
-
-      const printVerboseGroup = (label, items) => {
+      /**
+       * Print detailed verbose output for a group of items
+       *
+       * @param {String} label - Label for the group
+       * @param {Array} items - Items to display
+       * @param {String} groupColor - Color for the group label
+       */
+      const printVerboseGroup = (label, items, groupColor = 'white') => {
         const arr = normalizeArray(items);
         if (!arr.length) return;
-        this.log(`  ${label}: ${arr.length.toString().green}`);
+        this.log(`  ${label}: ${arr.length}`[groupColor]);
         arr.forEach((item) => {
-          const string = item?.string ?? '';
-          const key = item?.key ?? '';
-          const occurrences = Array.isArray(item?.occurrences) ? item.occurrences : [];
-          const context = Array.isArray(item?.context) ? item.context : [];
-          this.log(`    └─ ${JSON.stringify(string)}`.white);
-          this.log(`      └─ key: ${JSON.stringify(key)}`.gray);
-          this.log(`      └─ occurrences: ${JSON.stringify(occurrences)}`.gray);
-          this.log(`      └─ context: ${JSON.stringify(context)}`.gray);
+          const {
+            key = '',
+            string = '',
+            context = [],
+            occurrences = [],
+          } = item;
+          if (string) {
+            if (key !== string) {
+              this.log(`    └─ ${key}: ${string.underline}`);
+            } else {
+              this.log(`    └─ ${string.underline}`);
+            }
+            if (occurrences.length) {
+              this.log(`      └─ occurrences: ${occurrences.join(', ')}`.gray);
+            }
+            if (context.length) {
+              this.log(`      └─ context: ${context}`.gray);
+            }
+          }
         });
       };
-      // ----------------------------------------------------------------------
 
       CliUx.ux.action.start(uploadMessage, '', { stdout: true });
       try {
@@ -240,27 +242,28 @@ class PushCommand extends Command {
         if (status === 'completed') {
           CliUx.ux.action.stop('Success'.green);
           this.log(`${'✓'.green} Successfully pushed strings to Transifex:`);
-          if (res.verbose) {
-            printVerboseGroup('Created strings', res.verbose.created);
-            printVerboseGroup('Updated strings', res.verbose.updated);
-            printVerboseGroup('Skipped strings', res.verbose.skipped);
-            printVerboseGroup('Deleted strings', res.verbose.deleted);
-            printVerboseGroup('Failed strings', res.verbose.failed);
+
+          if (res.verbose && flags.verbose) {
+            printVerboseGroup('Created strings', res.verbose.created, 'green');
+            printVerboseGroup('Updated strings', res.verbose.updated, 'yellow');
+            printVerboseGroup('Deleted strings', res.verbose.deleted, 'red');
+            printVerboseGroup('Skipped strings', res.verbose.skipped, 'green');
+            printVerboseGroup('Failed strings', res.verbose.failed, 'red');
           } else {
             if (res.created > 0) {
-              this.log(`  Created strings: ${res.created.toString().green}`);
+              this.log(`  Created strings: ${res.created}`.green);
             }
             if (res.updated > 0) {
-              this.log(`  Updated strings: ${res.updated.toString().green}`);
-            }
-            if (res.skipped > 0) {
-              this.log(`  Skipped strings: ${res.skipped.toString().green}`);
+              this.log(`  Updated strings: ${res.updated}`.yellow);
             }
             if (res.deleted > 0) {
-              this.log(`  Deleted strings: ${res.deleted.toString().green}`);
+              this.log(`  Deleted strings: ${res.deleted}`.red);
+            }
+            if (res.skipped > 0) {
+              this.log(`  Skipped strings: ${res.skipped}`.green);
             }
             if (res.failed > 0) {
-              this.log(`  Failed strings: ${res.failed.toString().red}`);
+              this.log(`  Failed strings: ${res.failed}`.red);
             }
           }
         } else {
