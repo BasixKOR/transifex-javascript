@@ -161,6 +161,39 @@ class PushCommand extends Command {
         : 'Uploading content to Transifex';
 
       this.log('');
+
+      // --------- helpers to print verbose groups ----------
+      const normalizeArray = (maybeArr) => {
+        if (!maybeArr) return [];
+        if (Array.isArray(maybeArr)) return maybeArr;
+        if (typeof maybeArr === 'string') {
+          try {
+            const parsed = JSON.parse(maybeArr);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (_) {
+            return [];
+          }
+        }
+        return [];
+      };
+
+      const printVerboseGroup = (label, items) => {
+        const arr = normalizeArray(items);
+        if (!arr.length) return;
+        this.log(`  ${label}: ${arr.length.toString().green}`);
+        arr.forEach((item) => {
+          const string = item?.string ?? '';
+          const key = item?.key ?? '';
+          const occurrences = Array.isArray(item?.occurrences) ? item.occurrences : [];
+          const context = Array.isArray(item?.context) ? item.context : [];
+          this.log(`    └─ ${JSON.stringify(string)}`.white);
+          this.log(`      └─ key: ${JSON.stringify(key)}`.gray);
+          this.log(`      └─ occurrences: ${JSON.stringify(occurrences)}`.gray);
+          this.log(`      └─ context: ${JSON.stringify(context)}`.gray);
+        });
+      };
+      // ----------------------------------------------------------------------
+
       CliUx.ux.action.start(uploadMessage, '', { stdout: true });
       try {
         let res = await uploadPhrases(payload, {
@@ -207,20 +240,28 @@ class PushCommand extends Command {
         if (status === 'completed') {
           CliUx.ux.action.stop('Success'.green);
           this.log(`${'✓'.green} Successfully pushed strings to Transifex:`);
-          if (res.created > 0) {
-            this.log(`  Created strings: ${res.created.toString().green}`);
-          }
-          if (res.updated > 0) {
-            this.log(`  Updated strings: ${res.updated.toString().green}`);
-          }
-          if (res.skipped > 0) {
-            this.log(`  Skipped strings: ${res.skipped.toString().green}`);
-          }
-          if (res.deleted > 0) {
-            this.log(`  Deleted strings: ${res.deleted.toString().green}`);
-          }
-          if (res.failed > 0) {
-            this.log(`  Failed strings: ${res.failed.toString().red}`);
+          if (res.verbose) {
+            printVerboseGroup('Created strings', res.verbose.created);
+            printVerboseGroup('Updated strings', res.verbose.updated);
+            printVerboseGroup('Skipped strings', res.verbose.skipped);
+            printVerboseGroup('Deleted strings', res.verbose.deleted);
+            printVerboseGroup('Failed strings', res.verbose.failed);
+          } else {
+            if (res.created > 0) {
+              this.log(`  Created strings: ${res.created.toString().green}`);
+            }
+            if (res.updated > 0) {
+              this.log(`  Updated strings: ${res.updated.toString().green}`);
+            }
+            if (res.skipped > 0) {
+              this.log(`  Skipped strings: ${res.skipped.toString().green}`);
+            }
+            if (res.deleted > 0) {
+              this.log(`  Deleted strings: ${res.deleted.toString().green}`);
+            }
+            if (res.failed > 0) {
+              this.log(`  Failed strings: ${res.failed.toString().red}`);
+            }
           }
         } else {
           CliUx.ux.action.stop('Failed'.red);
