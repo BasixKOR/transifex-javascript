@@ -1,6 +1,6 @@
 {
   "name": "@transifex/angular",
-  "version": "7.1.4",
+  "version": "7.1.5",
   "description": "i18n Angular framework using Transifex Native",
   "keywords": [
     "transifex",
